@@ -1,0 +1,42 @@
+## Adding it here but I never used this
+plan env:
+    cd {{env}}; terraform init \
+        -backend-config="storage_account_name=${{env}}_backend_storage_name" \
+        -backend-config="subscription_id=$ARM_SUBSCRIPTION_ID" \
+        -backend-config="access_key=${{env}}_backend_storage_access_key"; \
+    terraform validate; \
+    terraform plan \
+        -var-file="terraform.tfvars" \
+        -input=false \
+        -out=tfplan
+
+apply env:
+	cd {{env}}; terraform apply \
+		-input=false \
+		tfplan
+
+destroy env:
+    cd {{env}}; terraform destroy \
+        -var="subscription_id=$ARM_SUBSCRIPTION_ID" \
+        -var-file="terraform.tfvars
+
+@backend env:
+    #!/usr/bin/env bash
+    az login; az account set --subscription "$ARM_SUBSCRIPTION_ID"
+    echo "Creating resource group..."
+    az group create --name "$PROJECT_NAME-{{env}}-backend" --location "southeastasia"
+    echo "Creating storage account..."
+    az storage account create \
+        --name "${PROJECT_NAME}backend{{env}}" \
+        --resource-group "$PROJECT_NAME-{{env}}-backend" \
+        --location "southeastasia" \
+        --sku Standard_LRS \
+        --encryption-services blob
+    echo "Creating storage container..."
+    account_key=$(az storage account keys list --resource-group "$PROJECT_NAME-{{env}}-backend" \
+        --account-name "${PROJECT_NAME}backend{{env}}" \
+        --query '[0].value' --output tsv)
+    az storage container create --name "tfstate" --account-name "${PROJECT_NAME}backend{{env}}" --account-key "$account_key"
+    echo "Creating Azure Container Registry repository..."
+    az acr create --resource-group "$PROJECT_NAME-{{env}}-backend" --name "${PROJECT_NAME}{{env}}" --sku Basic
+    echo "Get your storage account_key via 'az storage account keys list --resource-group <resource-group-name> --account-name <storage-acount-name> --query '[0].value' --output tsv'"

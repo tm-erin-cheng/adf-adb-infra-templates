@@ -1,0 +1,152 @@
+pr:
+  branches:
+    include:
+      - main
+  autoCancel: true
+
+trigger: none
+
+pool:
+  name: BIUDWPROD
+
+variables:
+  - group: Prod
+# - name: lockId
+#   value: "6f0368fb-e060-97b2-9893-377463e727e8"
+
+stages:
+  - stage: Simulation
+    displayName: Initialize Terraform and simulate deployment of resources
+    jobs:
+      - job: TerraformSimulation
+        steps:
+          - task: TerraformInstaller@1
+            displayName: Install Terraform
+            inputs:
+              terraformVersion: latest
+          - task: TerraformCLI@2
+            displayName: "Terraform init"
+            inputs:
+              command: "init"
+              commandOptions: "-upgrade"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+              backendType: "azurerm"
+              backendServiceArm: "$(backendServiceArm)"
+              backendAzureRmResourceGroupName: "$(backendAzureRmResourceGroupName)"
+              backendAzureRmStorageAccountName: "$(backendAzureRmStorageAccountName)"
+              backendAzureRmContainerName: "$(backendAzureRmContainerName)"
+              backendAzureRmKey: "$(backendAzureRmKey)"
+          # - task: TerraformCLI@2
+          #   displayName: "Terraform force unlock"
+          #   inputs:
+          #     command: forceunlock
+          #     lockID: "$(lockID)"
+          #     workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+          # - task: TerraformCLI@2
+          #   displayName: "Terraform Destroy"
+          #   inputs:
+          #     command: "destroy"
+          #     workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+          #     environmentServiceName: "$(backendServiceArm)"
+          #   env:
+          #     TF_VAR_env: $(env)
+          #     TF_VAR_project_name: $(project_name)
+          #     TF_VAR_location: $(location)
+          #     TF_VAR_apps_resource_group_name: $(apps_resource_group_name)
+          #     TF_VAR_data_resource_group_name: $(data_resource_group_name)
+          #     TF_VAR_network_resource_group_name: $(network_resource_group_name)
+          #     TF_VAR_storage_resource_group_name: $(storage_resource_group_name)
+          # - task: TerraformCLI@2
+          #   displayName: "Terraform format"
+          #   inputs:
+          #     command: "fmt"
+          #     workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+          #     environmentServiceName: "$(backendServiceArm)"
+          #     commandOptions: '-check -recursive'
+          #   continueOnError: true
+          - task: TerraformCLI@2
+            displayName: "Terraform validate"
+            inputs:
+              command: "validate"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+
+          - task: TerraformCLI@2
+            displayName: "Terraform plan"
+            inputs:
+              command: "plan"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+              environmentServiceName: "$(backendServiceArm)"
+              commandOptions: "-out=tfplan"
+              publishPlanResults: "tfplan"
+            env:
+              TF_VAR_env: $(env)
+              TF_VAR_project_name: $(project_name)
+              TF_VAR_location: $(location)
+              TF_VAR_apps_resource_group_name: $(apps_resource_group_name)
+              TF_VAR_data_resource_group_name: $(data_resource_group_name)
+              TF_VAR_network_resource_group_name: $(network_resource_group_name)
+              TF_VAR_storage_resource_group_name: $(storage_resource_group_name)
+              TF_VAR_vnet_address_space: $(vnet_address_space)
+              TF_VAR_storage_subnet_address_space: $(storage_subnet_address_space)
+              TF_VAR_adf_subnet_address_space: $(adf_subnet_address_space)
+              TF_VAR_adbpublic_subnet_address_space: $(adbpublic_subnet_address_space)
+              TF_VAR_adbprivate_subnet_address_space: $(adbprivate_subnet_address_space)
+              TF_VAR_adbtransit_subnet_address_space: $(adbtransit_subnet_address_space)
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Terraform plan"
+            inputs:
+              PathtoPublish: "$(System.DefaultWorkingDirectory)/infra/$(env)/tfplan"
+              ArtifactName: "terraform_plan"
+              publishLocation: "Container"
+
+  - stage: Deployment
+    displayName: Initialize Terraform and simulate deployment of resources
+    dependsOn: Simulation
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy Infrastructure with Terraform
+        environment: BIUDWPROD
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@0
+                  inputs:
+                    artifactName: "terraform_plan"
+                    downloadPath: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+                - task: TerraformInstaller@1
+                  displayName: Install Terraform
+                  inputs:
+                    terraformVersion: latest
+                - task: TerraformCLI@2
+                  displayName: "Terraform init"
+                  inputs:
+                    command: "init"
+                    commandOptions: "-upgrade"
+                    workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+                    backendType: "azurerm"
+                    backendServiceArm: "$(backendServiceArm)"
+                    backendAzureRmResourceGroupName: "$(backendAzureRmResourceGroupName)"
+                    backendAzureRmStorageAccountName: "$(backendAzureRmStorageAccountName)"
+                    backendAzureRmContainerName: "$(backendAzureRmContainerName)"
+                    backendAzureRmKey: "$(backendAzureRmKey)"
+                - task: TerraformCLI@2
+                  displayName: "Terraform apply"
+                  inputs:
+                    command: "apply"
+                    workingDirectory: "$(System.DefaultWorkingDirectory)/infra/$(env)"
+                    environmentServiceName: "$(backendServiceArm)"
+                  env:
+                    TF_VAR_env: $(env)
+                    TF_VAR_project_name: $(project_name)
+                    TF_VAR_location: $(location)
+                    TF_VAR_apps_resource_group_name: $(apps_resource_group_name)
+                    TF_VAR_data_resource_group_name: $(data_resource_group_name)
+                    TF_VAR_network_resource_group_name: $(network_resource_group_name)
+                    TF_VAR_storage_resource_group_name: $(storage_resource_group_name)
+                    TF_VAR_vnet_address_space: $(vnet_address_space)
+                    TF_VAR_storage_subnet_address_space: $(storage_subnet_address_space)
+                    TF_VAR_adf_subnet_address_space: $(adf_subnet_address_space)
+                    TF_VAR_adbpublic_subnet_address_space: $(adbpublic_subnet_address_space)
+                    TF_VAR_adbprivate_subnet_address_space: $(adbprivate_subnet_address_space)
+                    TF_VAR_adbtransit_subnet_address_space: $(adbtransit_subnet_address_space)

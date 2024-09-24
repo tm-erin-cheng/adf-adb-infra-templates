@@ -1,0 +1,15 @@
+variables:
+  - name: subscriptionId
+    value: f15443ef-35ac-4259-9d63-6f7a63404171
+  - name: resourceGroup
+    value: rg-biudw-apps-nonprod-001
+  - name: adfName
+    value: df-biudw-nonprod-001
+  - name: deployEnvironment
+    value: BIUDWNONPROD
+  - name: serviceConnection
+    value: BIUDataWarehouseNonProd
+  - name: location
+    value: southeastasia
+  - name: overrideParameters
+    value: ""

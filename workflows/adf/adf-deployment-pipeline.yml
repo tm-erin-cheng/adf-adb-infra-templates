@@ -1,0 +1,64 @@
+trigger:
+  branches:
+    include:
+      - main #collaboration branch
+  paths:
+    include:
+      - adf/
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: adfRootFolder
+    value: adf/
+
+stages:
+  - stage: Build
+    displayName: Validate and generate ARM templates
+    variables:
+      - template: nonprod-variables.yml
+
+    jobs:
+      - template: build.yml
+        parameters:
+          adfRootFolder: ${{ variables.adfRootFolder }}
+          subscriptionId: ${{ variables.subscriptionId }}
+          resourceGroup: ${{ variables.resourceGroup }}
+          adfName: ${{ variables.adfName }}
+
+  - stage: DeployNonProd
+    dependsOn: Build
+    condition: succeeded()
+    displayName: Deploy nonprod
+    variables:
+      - template: nonprod-variables.yml
+
+    jobs:
+      - template: release.yml
+        parameters:
+          subscriptionId: ${{ variables.subscriptionId }}
+          resourceGroup: ${{ variables.resourceGroup }}
+          adfName: ${{ variables.adfName }}
+          adfRootFolder: ${{ variables.adfRootFolder }}
+          deployEnvironment: ${{ variables.deployEnvironment }}
+          serviceConnection: ${{ variables.serviceConnection }}
+          location: ${{ variables.location }}
+          overrideParameters: ${{ variables.overrideParameters }}
+      
+  # - stage: DeployProd
+  #   displayName: Deploy prod
+  #   variables:
+  #     - template: prod-variables.yml
+
+  #   jobs:
+  #     - template: release-pipeline.yml
+  #       parameters:
+  #         subscriptionId: ${{ variables.subscriptionId }}
+  #         resourceGroup: ${{ variables.resourceGroup }}
+  #         adfName: ${{ variables.adfName }}
+  #         adfRootFolder: ${{ variables.adfRootFolder }}
+  #         deployEnvironment: ${{ variables.deployEnvironment }}
+  #         serviceConnection: ${{ variables.serviceConnection }}
+  #         location: ${{ variables.location }}
+  #         overrideParameters: ${{ variables.overrideParameters }}
