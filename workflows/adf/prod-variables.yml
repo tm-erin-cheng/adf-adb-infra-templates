@@ -1,15 +1,15 @@
 variables:
   - name: subscriptionId
-    value: f15443ef-35ac-4259-9d63-6f7a63404171 ## @TODO: Change
+    value: ## @TODO: Add subscription ID
   - name: resourceGroup
-    value: rg-biudw-apps-prod-001
+    value: ## @TODO: Add resource group
   - name: adfName
-    value: df-biudw-prod-001
+    value: ## @TODO: Add ADF name
   - name: deployEnvironment
-    value: BIUDWPROD
+    value: ## @TODO: Add deployment environment
   - name: serviceConnection
-    value: BIUDataWarehouseProd
+    value: ## @TODO: Add service connection
   - name: location
-    value: southeastasia
+    value: ## @TODO: Add location
   - name: overrideParameters
     value: ""
